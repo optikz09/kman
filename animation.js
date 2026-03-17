@@ -1,3 +1,4 @@
+console.log('animation.js is executing');
 (function () {
     function initSvgAnimations() {
         if (typeof gsap === 'undefined') {
