@@ -119,17 +119,15 @@ console.log('animation.js is executing');
         }
 
         function swapAndAnimate(img) {
-            if (!img || img.dataset.animating || img.dataset.svgProcessed === 'true') {
-                return;
-            }
+    if (!img || img.dataset.animating || img.dataset.svgProcessed === 'true') {
+        return;
+    }
 
-            if (!img.src || !/\.svg($|\?)/i.test(img.src)) {
-                return;
-            }
+    if (!img.src) {
+        return;
+    }
 
-            console.log('Processing image:', img.src);
-
-            img.dataset.animating = 'true';
+    console.log('Processing image:', img.src);
 
             fetch(img.src)
                 .then(function (r) {
