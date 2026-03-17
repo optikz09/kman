@@ -1,3 +1,4 @@
+window.kmanExecutionCheck = 'ran';
 console.log('animation.js is executing');
 (function () {
     function initSvgAnimations() {
