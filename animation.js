@@ -1,13 +1,11 @@
 console.log('animation.js is executing');
 (function () {
     function initSvgAnimations() {
-        if (typeof gsap === 'undefined') {
-            console.error('GSAP not loaded');
-            return;
-        }
+        console.log('animation.js running');
 
-        if (typeof ScrollTrigger === 'undefined') {
-            console.error('ScrollTrigger not loaded');
+        if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') {
+            console.warn('GSAP or ScrollTrigger not ready, retrying...');
+            setTimeout(initSvgAnimations, 200);
             return;
         }
 
@@ -717,21 +715,31 @@ console.log('animation.js is executing');
             return tl;
         }
 
-        findAndSwap();
+                function waitForImagesAndStart() {
+            var imgs = document.querySelectorAll('img[src*="FG-"], img[src*="Figure-"]');
 
-        if (document.body) {
-            new MutationObserver(function () {
-                findAndSwap();
-            }).observe(document.body, {
-                childList: true,
-                subtree: true
-            });
+            if (!imgs.length) {
+                console.log('No matching SVG images yet, retrying...');
+                setTimeout(waitForImagesAndStart, 300);
+                return;
+            }
+
+            console.log('Found matching SVG images:', imgs.length);
+
+            findAndSwap();
+
+            if (document.body) {
+                new MutationObserver(function () {
+                    findAndSwap();
+                }).observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
         }
+
+        waitForImagesAndStart();
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSvgAnimations);
-    } else {
-        initSvgAnimations();
-    }
+    initSvgAnimations();
 })();
