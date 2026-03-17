@@ -1,5 +1,5 @@
-window.kmanExecutionCheck = 'ran';
 console.log('animation.js is executing');
+
 (function () {
     function initSvgAnimations() {
         console.log('animation.js running');
@@ -31,9 +31,11 @@ console.log('animation.js is executing');
 
             styleEls.forEach(function (styleEl) {
                 var matches = styleEl.textContent.match(/\.([a-zA-Z][\w-]*)/g);
+
                 if (matches) {
                     matches.forEach(function (m) {
                         var cls = m.slice(1);
+
                         if (classNames.indexOf(cls) === -1) {
                             classNames.push(cls);
                         }
@@ -61,19 +63,19 @@ console.log('animation.js is executing');
 
                 el.setAttribute(
                     'class',
-                    classes
-                        .map(function (cls) {
-                            return classNames.indexOf(cls) !== -1 ? prefix + '-' + cls : cls;
-                        })
-                        .join(' ')
+                    classes.map(function (cls) {
+                        return classNames.indexOf(cls) !== -1 ? prefix + '-' + cls : cls;
+                    }).join(' ')
                 );
             });
 
             svg.querySelectorAll('*').forEach(function (el) {
                 ['href', 'xlink:href'].forEach(function (attr) {
                     var val = el.getAttribute(attr);
+
                     if (val && val.charAt(0) === '#') {
                         var ref = val.slice(1);
+
                         if (ids.indexOf(ref) !== -1) {
                             el.setAttribute(attr, '#' + prefix + '-' + ref);
                         }
@@ -82,10 +84,12 @@ console.log('animation.js is executing');
 
                 ['style', 'fill', 'clip-path', 'mask', 'filter'].forEach(function (attr) {
                     var val = el.getAttribute(attr);
+
                     if (val && val.indexOf('url(#') !== -1) {
                         val = val.replace(/url\(#([^)]+)\)/g, function (match, ref) {
                             return ids.indexOf(ref) !== -1 ? 'url(#' + prefix + '-' + ref + ')' : match;
                         });
+
                         el.setAttribute(attr, val);
                     }
                 });
@@ -104,9 +108,9 @@ console.log('animation.js is executing');
                     svg.setAttribute(
                         'viewBox',
                         (bbox.x - padding) + ' ' +
-                            (bbox.y - padding) + ' ' +
-                            (bbox.width + padding * 2) + ' ' +
-                            (bbox.height + padding * 2)
+                        (bbox.y - padding) + ' ' +
+                        (bbox.width + padding * 2) + ' ' +
+                        (bbox.height + padding * 2)
                     );
                 }
             } catch (e) {
@@ -123,6 +127,8 @@ console.log('animation.js is executing');
                 return;
             }
 
+            console.log('Processing image:', img.src);
+
             img.dataset.animating = 'true';
 
             fetch(img.src)
@@ -130,6 +136,7 @@ console.log('animation.js is executing');
                     if (!r.ok) {
                         throw new Error('Failed to fetch SVG: ' + r.status + ' ' + r.statusText);
                     }
+
                     return r.text();
                 })
                 .then(function (svgText) {
@@ -138,7 +145,7 @@ console.log('animation.js is executing');
                     var svg = doc.querySelector('svg');
 
                     if (!svg) {
-                        throw new Error('No <svg> element found in fetched file');
+                        throw new Error('No <svg> found in fetched file');
                     }
 
                     svg.style.width = '100%';
@@ -160,13 +167,17 @@ console.log('animation.js is executing');
 
                     if (svg.closest('.popup-expand, .popup-expand-image')) {
                         svg.dataset.svgProcessed = 'true';
+                        console.log('Skipping popup SVG');
                         return;
                     }
 
                     var chartType = detectChartType(svg);
 
+                    console.log('Swapped SVG:', svg);
+                    console.log('Detected chart type:', chartType);
+
                     prepareAnimation(svg, chartType);
-                    attachIntersectionTrigger(svg, chartType);
+                    fireAnimation(svg, chartType);
 
                     svg.dataset.svgProcessed = 'true';
                 })
@@ -176,50 +187,6 @@ console.log('animation.js is executing');
                 .finally(function () {
                     delete img.dataset.animating;
                 });
-        }
-
-        function attachIntersectionTrigger(svg, chartType) {
-            var pendingTimer = null;
-            var activeTimeline = null;
-            var isAnimating = false;
-
-            var observer = new IntersectionObserver(
-                function (entries) {
-                    entries.forEach(function (entry) {
-                        if (entry.isIntersecting) {
-                            clearTimeout(pendingTimer);
-
-                            pendingTimer = setTimeout(function () {
-                                if (activeTimeline) {
-                                    activeTimeline.kill();
-                                    activeTimeline = null;
-                                }
-
-                                prepareAnimation(svg, chartType);
-                                activeTimeline = fireAnimation(svg, chartType);
-                                isAnimating = true;
-                            }, 830);
-                        } else {
-                            clearTimeout(pendingTimer);
-
-                            if (activeTimeline) {
-                                activeTimeline.kill();
-                                activeTimeline = null;
-                            }
-
-                            if (isAnimating) {
-                                prepareAnimation(svg, chartType);
-                                isAnimating = false;
-                            }
-                        }
-                    });
-                },
-                {
-                    threshold: 0.15
-                }
-            );
-
-            observer.observe(svg);
         }
 
         function detectChartType(svg) {
@@ -237,6 +204,8 @@ console.log('animation.js is executing');
         }
 
         function fireAnimation(svg, t) {
+            console.log('fireAnimation called:', t, svg);
+
             if (t === 'linebar') return animateLineBar(svg);
             if (t === 'plotted') return animatePlotted(svg);
             if (t === 'map') return animateMap(svg);
@@ -252,25 +221,21 @@ console.log('animation.js is executing');
         }
 
         function fromVars(t) {
-            return (
-                {
-                    slideup: { y: 30 },
-                    slidedown: { y: -30 },
-                    slideright: { x: -30 },
-                    slideleft: { x: 30 }
-                }[t] || {}
-            );
+            return ({
+                slideup: { y: 30 },
+                slidedown: { y: -30 },
+                slideright: { x: -30 },
+                slideleft: { x: 30 }
+            })[t] || {};
         }
 
         function toVars(t) {
-            return (
-                {
-                    slideup: { y: 0 },
-                    slidedown: { y: 0 },
-                    slideright: { x: 0 },
-                    slideleft: { x: 0 }
-                }[t] || {}
-            );
+            return ({
+                slideup: { y: 0 },
+                slidedown: { y: 0 },
+                slideright: { x: 0 },
+                slideleft: { x: 0 }
+            })[t] || {};
         }
 
         function prepareGroups(svg) {
@@ -307,7 +272,10 @@ console.log('animation.js is executing');
                 }
             });
 
-            if (!groups.length) return gsap.timeline();
+            if (!groups.length) {
+                console.warn('No group animation targets found');
+                return gsap.timeline();
+            }
 
             groups.sort(function (a, b) {
                 return a.order - b.order;
@@ -356,7 +324,10 @@ console.log('animation.js is executing');
 
             for (var i = 1; i <= 15; i++) {
                 var g = svg.querySelector('[id$="-Bar' + (i < 10 ? '0' + i : '' + i) + '"]');
-                if (g) groups.push(g);
+
+                if (g) {
+                    groups.push(g);
+                }
             }
 
             return groups;
@@ -397,6 +368,7 @@ console.log('animation.js is executing');
 
             bars.forEach(function (g) {
                 var r = g.querySelector('rect');
+
                 if (r) {
                     gsap.set(r, {
                         transformOrigin: '50% ' + AXIS_Y + 'px',
@@ -409,6 +381,7 @@ console.log('animation.js is executing');
 
             if (le) {
                 var len = le.getTotalLength();
+
                 gsap.set(le, {
                     strokeDasharray: len,
                     strokeDashoffset: len,
@@ -470,38 +443,26 @@ console.log('animation.js is executing');
             tl.to(lg, { opacity: 1, duration: 0 }, '-=0.1');
 
             if (le) {
-                tl.to(
-                    le,
-                    {
-                        strokeDashoffset: 0,
-                        duration: 1.8,
-                        ease: 'power1.inOut'
-                    },
-                    '<'
-                );
+                tl.to(le, {
+                    strokeDashoffset: 0,
+                    duration: 1.8,
+                    ease: 'power1.inOut'
+                }, '<');
             }
 
-            tl.to(
-                ci,
-                {
-                    opacity: 1,
-                    scale: 1,
-                    duration: 0.25,
-                    stagger: 0.08,
-                    ease: 'back.out(2)'
-                },
-                '<0.3'
-            );
+            tl.to(ci, {
+                opacity: 1,
+                scale: 1,
+                duration: 0.25,
+                stagger: 0.08,
+                ease: 'back.out(2)'
+            }, '<0.3');
 
-            tl.to(
-                tx,
-                {
-                    opacity: 1,
-                    duration: 0.3,
-                    stagger: 0.05
-                },
-                '-=1.2'
-            );
+            tl.to(tx, {
+                opacity: 1,
+                duration: 0.3,
+                stagger: 0.05
+            }, '-=1.2');
 
             return tl;
         }
@@ -557,18 +518,14 @@ console.log('animation.js is executing');
             tl.to(e.bg, { opacity: 1, duration: 0.8, stagger: 0.1 });
             tl.to(e.bgt, { opacity: 1, duration: 0.5 }, '-=0.3');
             tl.to(e.ln, { strokeDashoffset: 0, opacity: 1, duration: 0.6, stagger: 0.04 }, '-=0.2');
-            tl.to(
-                e.ci,
-                {
-                    opacity: 1,
-                    scale: 1,
-                    duration: 0.35,
-                    stagger: 0.06,
-                    ease: 'back.out(1.7)',
-                    transformOrigin: 'center center'
-                },
-                '-=0.1'
-            );
+            tl.to(e.ci, {
+                opacity: 1,
+                scale: 1,
+                duration: 0.35,
+                stagger: 0.06,
+                ease: 'back.out(1.7)',
+                transformOrigin: 'center center'
+            }, '-=0.1');
             tl.to(e.lb, { opacity: 1, duration: 0.4, stagger: 0.04 }, '-=0.2');
 
             return tl;
@@ -655,68 +612,48 @@ console.log('animation.js is executing');
                 var isG = item.el.tagName.toLowerCase() === 'g';
                 var ses = isG ? Array.from(item.el.querySelectorAll('line,polyline,path')) : [item.el];
 
-                tl.to(
-                    item.el,
-                    {
-                        opacity: 1,
-                        duration: 0
-                    },
-                    i === 0 ? '>' : '-=0.3'
-                );
+                tl.to(item.el, {
+                    opacity: 1,
+                    duration: 0
+                }, i === 0 ? '>' : '-=0.3');
 
                 if (ses.length) {
-                    tl.to(
-                        ses,
-                        {
-                            strokeDashoffset: 0,
-                            opacity: 1,
-                            duration: 0.8,
-                            stagger: 0.04,
-                            ease: 'power1.inOut'
-                        },
-                        '<'
-                    );
+                    tl.to(ses, {
+                        strokeDashoffset: 0,
+                        opacity: 1,
+                        duration: 0.8,
+                        stagger: 0.04,
+                        ease: 'power1.inOut'
+                    }, '<');
                 }
             });
 
             if (mc.length) {
-                tl.to(
-                    mc,
-                    {
-                        opacity: 1,
-                        scale: 1,
-                        duration: 0.3,
-                        stagger: 0.07,
-                        ease: 'back.out(2)'
-                    },
-                    '-=0.2'
-                );
+                tl.to(mc, {
+                    opacity: 1,
+                    scale: 1,
+                    duration: 0.3,
+                    stagger: 0.07,
+                    ease: 'back.out(2)'
+                }, '-=0.2');
             } else if (mg) {
-                tl.to(
-                    mg,
-                    {
-                        opacity: 1,
-                        duration: 0.4
-                    },
-                    '-=0.2'
-                );
+                tl.to(mg, {
+                    opacity: 1,
+                    duration: 0.4
+                }, '-=0.2');
             }
 
             if (lg) {
-                tl.to(
-                    lg,
-                    {
-                        opacity: 1,
-                        duration: 0.6
-                    },
-                    '-=0.1'
-                );
+                tl.to(lg, {
+                    opacity: 1,
+                    duration: 0.6
+                }, '-=0.1');
             }
 
             return tl;
         }
 
-                function waitForImagesAndStart() {
+        function waitForImagesAndStart() {
             var imgs = document.querySelectorAll('img[src*="FG-"], img[src*="Figure-"]');
 
             if (!imgs.length) {
